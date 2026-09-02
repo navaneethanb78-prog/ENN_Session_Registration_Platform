@@ -1,0 +1,34 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Local server-side dev database (never commit)
+.data/
+
+# Environment / secrets — never commit
+.env
+.env.local
+.env*.local
+# Timestamped copies made when editing env files
+.env*.backup*
+.env*.bak
+serviceAccount*.json
+*-firebase-adminsdk-*.json
+
+.DS_Store
+*.log
+npm-debug.log*
+.vercel
+*.tsbuildinfo
+coverage/
+
+# Local scratch
+.scratch/
+
+# Commercial records: client names, participant counts and engagement charges.
+# Already imported into Firestore; kept out of the repository because it is
+# public. Remove this line if the repository is made private and you want the
+# import to be reproducible from a clone.
+data/past-sessions.json

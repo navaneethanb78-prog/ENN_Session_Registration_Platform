@@ -1,0 +1,53 @@
+rules_version = '2';
+
+/*
+ * ENN Consultancy — Firestore security rules.
+ *
+ * Design principle: seat allocation and registration creation happen ONLY in
+ * trusted server-side code (Next.js route handlers using the Firebase Admin
+ * SDK). The Admin SDK bypasses these rules by design, so everything a browser
+ * could reach is locked down here.
+ *
+ * That means a malicious client cannot:
+ *   - modify registeredCount or maximumSeats to fake availability
+ *   - create, edit or delete session documents
+ *   - read the registrations collection, or any other person's registration
+ *   - forge a registration uniqueness key or tamper with reference counters
+ */
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Sessions carry no personal data, but nothing in this application reads
+    // them from the browser — the Next.js server fetches them with the Admin
+    // SDK and returns a projection. Least privilege therefore says deny.
+    //
+    // If a future feature ever needs to read the catalogue directly from a
+    // client, relax only the read rule here:
+    //     allow read: if true;
+    match /sessions/{sessionId} {
+      allow read, write: if false;
+    }
+
+    // Registration records contain personal data. No client access whatsoever;
+    // they are served only through authenticated, server-side admin routes.
+    match /registrations/{registrationId} {
+      allow read, write: if false;
+    }
+
+    // Deterministic (session + email) keys that make duplicate detection
+    // transactional. Exposing these would leak who has registered.
+    match /registrationKeys/{key} {
+      allow read, write: if false;
+    }
+
+    // Registration reference sequence counters.
+    match /counters/{counterId} {
+      allow read, write: if false;
+    }
+
+    // Anything not matched above is denied.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

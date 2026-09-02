@@ -1,0 +1,5 @@
+{
+  "comment": "No composite indexes are required. Queries that filter by one field and sort by another are sorted in application code instead, so the app works against a fresh Firestore project with no index build step.",
+  "indexes": [],
+  "fieldOverrides": []
+}
