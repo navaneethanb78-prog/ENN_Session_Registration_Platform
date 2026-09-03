@@ -2,7 +2,12 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { AppError } from "@/lib/errors";
-import { hydrateSession, materialiseSession, mergeSessionInput } from "./derive";
+import {
+  hydrateRegistration,
+  hydrateSession,
+  materialiseSession,
+  mergeSessionInput,
+} from "./derive";
 import {
   applySeatClaim,
   assertRegistrable,
@@ -156,9 +161,10 @@ export function createLocalStore(): SessionStore {
     async listRegistrations(filter) {
       return withLock(async () => {
         const db = await load();
-        return filter?.sessionId
+        const rows = filter?.sessionId
           ? db.registrations.filter((r) => r.sessionId === filter.sessionId)
           : db.registrations;
+        return rows.map(hydrateRegistration);
       });
     },
 

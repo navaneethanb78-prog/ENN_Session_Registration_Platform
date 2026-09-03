@@ -15,7 +15,8 @@
     "import:transition": "tsx scripts/import-transition-session.ts",
     "test:email": "tsx scripts/test-email.ts",
     "backfill:pricing": "tsx scripts/backfill-pricing.ts",
-    "import:past": "tsx scripts/import-past-sessions.ts"
+    "import:past": "tsx scripts/import-past-sessions.ts",
+    "backfill:payments": "tsx scripts/backfill-payments.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -23,6 +24,7 @@
     "date-fns-tz": "^3.2.0",
     "firebase": "^11.10.0",
     "firebase-admin": "^13.0.2",
+    "jspdf": "^4.2.1",
     "next": "^15.1.6",
     "nodemailer": "^9.1.0",
     "qrcode": "^1.5.4",

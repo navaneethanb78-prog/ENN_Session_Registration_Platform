@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { zonedDateTimeToUtc } from "@/lib/time";
-import type { CreateSessionInput, TrainingSession } from "./types";
+import type { CreateSessionInput, Registration, TrainingSession } from "./types";
 
 /**
  * Fill in fields that may be absent on documents written before those fields
@@ -20,6 +20,25 @@ export function hydrateSession(raw: TrainingSession): TrainingSession {
     isFree: typeof raw.isFree === "boolean" ? raw.isFree : price <= 0,
     registeredCount: typeof raw.registeredCount === "number" ? raw.registeredCount : 0,
     maximumSeats: typeof raw.maximumSeats === "number" ? raw.maximumSeats : 0,
+  };
+}
+
+/**
+ * Fill in registration fields absent on records written before those fields
+ * existed — the payment columns, added once paid sessions were introduced.
+ *
+ * The default is NOT_REQUIRED with nothing owed, which is the safe direction:
+ * a record with no payment information recorded should never present as a debt
+ * an administrator has to chase.
+ */
+export function hydrateRegistration(raw: Registration): Registration {
+  return {
+    ...raw,
+    paymentStatus: raw.paymentStatus ?? "NOT_REQUIRED",
+    paymentReference: raw.paymentReference ?? "",
+    amountDue: typeof raw.amountDue === "number" ? raw.amountDue : 0,
+    attendanceStatus: raw.attendanceStatus ?? "PENDING",
+    notes: raw.notes ?? "",
   };
 }
 

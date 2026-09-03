@@ -41,6 +41,8 @@ export interface FormState {
   email: string;
   sessionId: string;
   paymentReference: string;
+  /** The in-person delivery notice must be acknowledged before continuing. */
+  acceptedInPerson: boolean;
 }
 
 const EMPTY: FormState = {
@@ -53,6 +55,7 @@ const EMPTY: FormState = {
   email: "",
   sessionId: "",
   paymentReference: "",
+  acceptedInPerson: false,
 };
 
 /**
@@ -65,8 +68,10 @@ function validateStep(
   options: { paymentStepIndex: number } = { paymentStepIndex: -1 },
 ): Record<string, string> {
   const errors: Record<string, string> = {};
+  // Only the text fields are length-checked; the booleans have their own rules.
   const need = (field: keyof FormState, message: string, min = 2) => {
-    if (values[field].trim().length < min) errors[field] = message;
+    const value = values[field];
+    if (typeof value !== "string" || value.trim().length < min) errors[field] = message;
   };
 
   if (step === 0) {
@@ -91,8 +96,12 @@ function validateStep(
     else if (!isValidEmail(values.email)) errors.email = "Please enter a valid email address.";
   }
 
-  if (step === 2 && !values.sessionId) {
-    errors.sessionId = "Please select a session to continue.";
+  if (step === 2) {
+    if (!values.sessionId) errors.sessionId = "Please select a session to continue.";
+    if (!values.acceptedInPerson) {
+      errors.acceptedInPerson =
+        "Please confirm you understand the session is delivered in person.";
+    }
   }
 
   if (step === options.paymentStepIndex && !values.paymentReference.trim()) {
@@ -366,10 +375,48 @@ export function RegistrationWizard({
 
           {step === 2 && (
             <div>
-              <Alert tone="info" className="mb-4">
-                <strong>Delivered in person.</strong> {DELIVERY_NOTICE} Please check the venue on
-                the session before selecting it.
-              </Alert>
+              {/*
+                Acknowledged rather than merely displayed. Attendance is at a
+                physical venue and travel is at the registrant's cost, so it
+                should not be possible to book without having read that.
+              */}
+              <div
+                className={clsx(
+                  "mb-5 rounded-lg border p-4 transition-colors",
+                  errors.acceptedInPerson
+                    ? "border-rose-300 bg-rose-50"
+                    : values.acceptedInPerson
+                      ? "border-emerald-300 bg-emerald-50"
+                      : "border-brand-200 bg-brand-50",
+                )}
+              >
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={values.acceptedInPerson}
+                    onChange={(e) => set("acceptedInPerson", e.target.checked)}
+                    aria-describedby={errors.acceptedInPerson ? "in-person-error" : undefined}
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-brand-700"
+                  />
+                  <span className="text-[0.875rem] leading-relaxed text-ink-800">
+                    <strong className="block">
+                      I understand this session is delivered in person.
+                    </strong>
+                    {DELIVERY_NOTICE} Please check the venue and date on the session before
+                    selecting it — attendance is at the stated venue, and travel is at your own
+                    cost.
+                  </span>
+                </label>
+                {errors.acceptedInPerson && (
+                  <p
+                    id="in-person-error"
+                    role="alert"
+                    className="mt-2 pl-7 text-[0.8125rem] text-rose-600"
+                  >
+                    {errors.acceptedInPerson}
+                  </p>
+                )}
+              </div>
               {errors.sessionId && (
                 <Alert tone="warning" className="mb-4">
                   {errors.sessionId}

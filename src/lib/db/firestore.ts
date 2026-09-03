@@ -1,6 +1,11 @@
 import { AppError } from "@/lib/errors";
 import { getDb } from "@/lib/firebase/admin";
-import { hydrateSession, materialiseSession, mergeSessionInput } from "./derive";
+import {
+  hydrateRegistration,
+  hydrateSession,
+  materialiseSession,
+  mergeSessionInput,
+} from "./derive";
 import {
   applySeatClaim,
   assertRegistrable,
@@ -104,7 +109,9 @@ export function createFirestoreStore(): SessionStore {
         ? await base.where("sessionId", "==", filter.sessionId).get()
         : await base.orderBy("registeredAt", "desc").get();
 
-      const rows = snap.docs.map((d) => ({ ...(d.data() as Registration), id: d.id }));
+      const rows = snap.docs.map((d) =>
+        hydrateRegistration({ ...(d.data() as Registration), id: d.id }),
+      );
 
       return filter?.sessionId
         ? rows.sort(

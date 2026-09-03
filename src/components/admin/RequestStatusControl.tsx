@@ -5,42 +5,45 @@ import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import type { InHouseRequestStatus } from "@/lib/db/types";
 
-const OPTIONS: { value: InHouseRequestStatus; label: string; active: string }[] = [
-  { value: "PENDING", label: "Pending", active: "bg-ink-700 text-white ring-ink-700" },
-  { value: "PLANNING", label: "Planning", active: "bg-amber-500 text-white ring-amber-500" },
-  { value: "ACCEPTED", label: "Accepted", active: "bg-emerald-600 text-white ring-emerald-600" },
-  { value: "REJECTED", label: "Rejected", active: "bg-rose-600 text-white ring-rose-600" },
+const OPTIONS: { value: InHouseRequestStatus; label: string }[] = [
+  { value: "PENDING", label: "Pending" },
+  { value: "PLANNING", label: "Planning" },
+  { value: "ACCEPTED", label: "Accepted" },
+  { value: "REJECTED", label: "Rejected" },
 ];
 
 export const REQUEST_STATUS_STYLE: Record<InHouseRequestStatus, string> = {
-  PENDING: "bg-ink-100 text-ink-700 ring-ink-200",
-  PLANNING: "bg-amber-50 text-amber-800 ring-amber-200",
-  ACCEPTED: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-  REJECTED: "bg-rose-50 text-rose-800 ring-rose-200",
+  PENDING: "border-ink-300 bg-ink-50 text-ink-700",
+  PLANNING: "border-amber-300 bg-amber-50 text-amber-900",
+  ACCEPTED: "border-emerald-300 bg-emerald-50 text-emerald-900",
+  REJECTED: "border-rose-300 bg-rose-50 text-rose-900",
 };
 
-/** Inline status switcher for a single on-site request. */
+/**
+ * Status for one on-site request.
+ *
+ * A select rather than four buttons: only one status applies at a time, the
+ * control stays one line wide however many statuses exist, and it reads the
+ * same on a phone as on a desktop.
+ */
 export function RequestStatusControl({
   requestId,
   status,
-  compact = false,
 }: {
   requestId: string;
   status: InHouseRequestStatus;
-  compact?: boolean;
 }) {
   const router = useRouter();
   const [current, setCurrent] = useState<InHouseRequestStatus>(status);
-  const [busy, setBusy] = useState<InHouseRequestStatus | null>(null);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function update(next: InHouseRequestStatus) {
     if (next === current) return;
-    setBusy(next);
-    setError(null);
     const previous = current;
-    setCurrent(next); // optimistic
-
+    setCurrent(next);
+    setBusy(true);
+    setError(null);
     try {
       const res = await fetch(`/api/admin/requests/${requestId}`, {
         method: "PATCH",
@@ -58,42 +61,35 @@ export function RequestStatusControl({
       setCurrent(previous);
       setError("The status could not be updated.");
     } finally {
-      setBusy(null);
+      setBusy(false);
     }
   }
 
   return (
-    <div>
-      <div
-        className={clsx("inline-flex flex-wrap gap-1", compact && "gap-1")}
-        role="group"
-        aria-label="Request status"
+    <div className="flex flex-col gap-1">
+      <label className="sr-only" htmlFor={`status-${requestId}`}>
+        Request status
+      </label>
+      <select
+        id={`status-${requestId}`}
+        value={current}
+        disabled={busy}
+        onChange={(e) => update(e.target.value as InHouseRequestStatus)}
+        className={clsx(
+          "h-9 w-full max-w-[10rem] rounded-lg border px-2.5 text-[0.8125rem] font-medium transition-colors disabled:opacity-60",
+          REQUEST_STATUS_STYLE[current],
+        )}
       >
-        {OPTIONS.map((option) => {
-          const selected = current === option.value;
-          return (
-            <button
-              key={option.value}
-              type="button"
-              disabled={busy !== null}
-              aria-pressed={selected}
-              onClick={() => update(option.value)}
-              className={clsx(
-                "rounded-md px-2.5 py-1.5 text-[0.75rem] font-medium ring-1 ring-inset transition-colors disabled:opacity-60",
-                selected
-                  ? option.active
-                  : "bg-white text-ink-500 ring-ink-200 hover:bg-ink-50 hover:text-ink-800",
-              )}
-            >
-              {busy === option.value ? "…" : option.label}
-            </button>
-          );
-        })}
-      </div>
+        {OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
       {error && (
-        <p role="alert" className="mt-1.5 text-[0.75rem] text-rose-600">
+        <span role="alert" className="text-[0.6875rem] text-rose-600">
           {error}
-        </p>
+        </span>
       )}
     </div>
   );

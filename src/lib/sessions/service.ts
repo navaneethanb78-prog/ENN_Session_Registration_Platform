@@ -4,7 +4,6 @@ import { AppError, toAppError } from "@/lib/errors";
 import { registrationSchema, fieldErrorsFrom } from "@/lib/validation/schemas";
 import { sendEmailInBackground } from "@/lib/email/mailer";
 import { internalNotification, registrationEmail } from "@/lib/email/templates";
-import { buildUpiQrDataUri } from "@/lib/payment";
 import { bySessionStart, computeSessionView } from "./status";
 import { toPublicDto, type PublicSessionDto } from "./dto";
 
@@ -108,15 +107,11 @@ export async function createRegistration(
     // a mail failure must never undo a registration or surface as an error.
     const stored = await store.getSession(parsed.data.sessionId);
     if (stored) {
-      const qr =
-        registration.amountDue > 0
-          ? await buildUpiQrDataUri(
-              registration.amountDue,
-              `${registration.registrationReference} ${stored.sessionName}`.slice(0, 50),
-            ).catch(() => null)
-          : null;
-
-      sendEmailInBackground(registrationEmail(registration, stored, qr));
+      // No payment QR in the confirmation email. The code is shown on the
+      // payment step, where the amount is live and the registrant is already
+      // paying; repeating it in an email invites payment against a stale
+      // figure, and ENN would rather confirm the amount directly.
+      sendEmailInBackground(registrationEmail(registration, stored));
 
       const internal = internalNotification(
         `New registration - ${stored.sessionName}`,

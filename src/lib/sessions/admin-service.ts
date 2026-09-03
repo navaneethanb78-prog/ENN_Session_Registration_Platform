@@ -10,10 +10,19 @@ export interface AdminSessionRow extends SessionView {
   registrationCount: number;
 }
 
+/**
+ * Sessions for the administration area, most recent first.
+ *
+ * The public catalogue leads with what is bookable; an administrator is nearly
+ * always working on the newest session, and with several years of history the
+ * oldest-first order buried it at the bottom of the page.
+ */
 export async function listAdminSessions(now: Date = new Date()): Promise<SessionView[]> {
   const store = await getStore();
   const sessions = await store.listSessions();
-  return sessions.sort(bySessionStart).map((s) => computeSessionView(s, now));
+  return sessions
+    .sort((a, b) => -bySessionStart(a, b))
+    .map((s) => computeSessionView(s, now));
 }
 
 export async function getAdminSession(id: string, now: Date = new Date()): Promise<SessionView> {
@@ -109,7 +118,10 @@ export async function dashboardStats(now: Date = new Date()): Promise<DashboardS
   const registrations = await store.listRegistrations();
 
   const live = views.filter((v) => v.status !== "CANCELLED");
-  const upcoming = live.filter((v) => !v.isPast);
+  // listAdminSessions returns newest first for the tables; "next session" and
+  // the utilisation chart need the opposite, so they are re-sorted here rather
+  // than depending on the list's order.
+  const upcoming = live.filter((v) => !v.isPast).sort((a, b) => bySessionStart(a.session, b.session));
 
   // Utilisation is measured against sessions that are still relevant, so a long
   // history of past events does not distort the figure.
