@@ -4,6 +4,7 @@ import { DELIVERY_NOTICE } from "@/lib/programmes";
 import { listPublicSessions } from "@/lib/sessions/service";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import { LinkButton } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/Primitives";
 import { TrainingProgrammes } from "@/components/home/TrainingProgrammes";
 import { HomeSessions } from "@/components/home/HomeSessions";
 
@@ -19,7 +20,15 @@ export const metadata: Metadata = {
  * pages to navigate between — the header links are in-page anchors.
  */
 export default async function HomePage() {
-  const sessions = await listPublicSessions(new Date());
+  let sessions: Awaited<ReturnType<typeof listPublicSessions>> = [];
+  let sessionsUnavailable = false;
+  try {
+    sessions = await listPublicSessions(new Date());
+  } catch (error) {
+    // The rest of the page is still worth showing; only the listing is missing.
+    console.error("[enn] could not load sessions:", error);
+    sessionsUnavailable = true;
+  }
   const openCount = sessions.filter((s) => s.canRegister).length;
   const seatsAvailable = sessions
     .filter((s) => s.canRegister)
@@ -77,6 +86,13 @@ export default async function HomePage() {
         </section>
 
         <TrainingProgrammes />
+        {sessionsUnavailable && (
+          <Alert tone="warning" className="mb-8">
+            <strong>Sessions cannot be listed at the moment.</strong> This is a temporary problem
+            at our end, not with your browser. Please try again shortly, or contact ENN
+            Consultancy directly.
+          </Alert>
+        )}
         <HomeSessions sessions={sessions} />
       </main>
 

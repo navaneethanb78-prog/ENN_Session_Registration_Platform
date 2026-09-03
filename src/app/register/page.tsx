@@ -15,7 +15,15 @@ export const metadata: Metadata = {
 };
 
 export default async function RegisterPage() {
-  const sessions = await listPublicSessions(new Date());
+  let sessions: Awaited<ReturnType<typeof listPublicSessions>> = [];
+  let sessionsUnavailable = false;
+  try {
+    sessions = await listPublicSessions(new Date());
+  } catch (error) {
+    // The rest of the page is still worth showing; only the listing is missing.
+    console.error("[enn] could not load sessions:", error);
+    sessionsUnavailable = true;
+  }
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -30,6 +38,13 @@ export default async function RegisterPage() {
         <Alert tone="info" className="mb-8 max-w-2xl">
           <strong>All sessions are held in person.</strong> {DELIVERY_NOTICE}
         </Alert>
+        {sessionsUnavailable && (
+          <Alert tone="warning" className="mb-8">
+            <strong>Sessions cannot be listed at the moment.</strong> This is a temporary problem
+            at our end, not with your browser. Please try again shortly, or contact ENN
+            Consultancy directly.
+          </Alert>
+        )}
         <RegisterExperience sessions={sessions} />
       </main>
       <SiteFooter />

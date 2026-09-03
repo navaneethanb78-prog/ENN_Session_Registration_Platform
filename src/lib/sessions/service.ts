@@ -28,6 +28,7 @@ export async function listPublicSessions(now: Date = new Date()): Promise<Public
   const store = await getStore();
   const all = await store.listSessions();
 
+
   // The whole delivery history is shown. The catalogue groups past sessions by
   // month and keeps them collapsed, so a long record never buries what is
   // actually bookable.
