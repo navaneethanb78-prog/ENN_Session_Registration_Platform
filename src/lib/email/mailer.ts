@@ -1,4 +1,6 @@
+import { after } from "next/server";
 import type { Transporter } from "nodemailer";
+import { readEnv } from "@/lib/config";
 
 /**
  * Outbound email.
@@ -23,7 +25,7 @@ export interface EmailMessage {
 }
 
 export function isEmailConfigured(): boolean {
-  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASSWORD);
+  return Boolean(readEnv("SMTP_HOST") && readEnv("SMTP_USER") && readEnv("SMTP_PASSWORD"));
 }
 
 let transporter: Transporter | null = null;
@@ -31,20 +33,23 @@ let transporter: Transporter | null = null;
 async function getTransporter(): Promise<Transporter> {
   if (transporter) return transporter;
   const nodemailer = (await import("nodemailer")).default;
-  const port = Number(process.env.SMTP_PORT ?? 587);
+  // Read through readEnv: a password pasted into a hosting dashboard often
+  // keeps the quotes from its .env line, which fails authentication with a
+  // misleading "bad credentials" error.
+  const port = Number(readEnv("SMTP_PORT") || 587);
   transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
+    host: readEnv("SMTP_HOST"),
     port,
     // 465 is implicit TLS; 587 upgrades with STARTTLS.
     secure: port === 465,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD },
+    auth: { user: readEnv("SMTP_USER"), pass: readEnv("SMTP_PASSWORD") },
   });
   return transporter;
 }
 
 function fromAddress(): string {
-  const name = process.env.SMTP_FROM_NAME ?? "ENN Consultancy";
-  const address = process.env.SMTP_FROM ?? process.env.SMTP_USER ?? "no-reply@example.com";
+  const name = readEnv("SMTP_FROM_NAME") || "ENN Consultancy";
+  const address = readEnv("SMTP_FROM") || readEnv("SMTP_USER") || "no-reply@example.com";
   return `"${name}" <${address}>`;
 }
 
@@ -65,7 +70,7 @@ export async function sendEmail(message: EmailMessage): Promise<boolean> {
     await mail.sendMail({
       from: fromAddress(),
       to: message.to,
-      replyTo: process.env.SMTP_REPLY_TO || undefined,
+      replyTo: readEnv("SMTP_REPLY_TO") || undefined,
       subject: message.subject,
       text: message.text,
       html: message.html,
@@ -84,9 +89,45 @@ export async function sendEmail(message: EmailMessage): Promise<boolean> {
 }
 
 /**
- * Fire a message without making the caller wait for the SMTP round trip, and
- * without letting a rejection escape into the request.
+ * Send after the response, without making the caller wait for the SMTP round
+ * trip and without letting a rejection escape into the request.
+ *
+ * `after()` is essential on a serverless host. A plain floating promise works
+ * on a long-lived Node process, but a serverless function is frozen the moment
+ * its response is returned — which killed the SMTP connection mid-handshake and
+ * silently delivered nothing. `after()` keeps the invocation alive until the
+ * work finishes.
+ *
+ * Outside a request (a script, a test) `after()` has nothing to attach to, so
+ * the send is awaited in the background instead.
  */
 export function sendEmailInBackground(message: EmailMessage): void {
-  void sendEmail(message).catch(() => undefined);
+  try {
+    after(async () => {
+      await sendEmail(message);
+    });
+  } catch {
+    void sendEmail(message).catch(() => undefined);
+  }
+}
+
+/**
+ * Open a real connection and authenticate, without sending anything.
+ *
+ * isEmailConfigured() only reports that the settings exist. This answers the
+ * question that actually matters after a deployment: will the mail server
+ * accept us? The returned reason is for an operator, so it is never shown to a
+ * visitor.
+ */
+export async function verifyEmailConnection(): Promise<{ ok: boolean; reason?: string }> {
+  if (!isEmailConfigured()) return { ok: false, reason: "SMTP settings are not all present" };
+  try {
+    const mail = await getTransporter();
+    await mail.verify();
+    return { ok: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[enn][email] SMTP verification failed:", message);
+    return { ok: false, reason: message.slice(0, 200) };
+  }
 }

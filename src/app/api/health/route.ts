@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStore } from "@/lib/db";
-import { isEmailConfigured } from "@/lib/email/mailer";
+import { isEmailConfigured, verifyEmailConnection } from "@/lib/email/mailer";
 import { isFirebaseAdminConfigured } from "@/lib/firebase/admin";
 import { isUpiConfigured } from "@/lib/payment";
 import { allowedEmails } from "@/lib/auth/admin";
@@ -18,7 +18,10 @@ import { allowedEmails } from "@/lib/auth/admin";
  */
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
+  // ?verify=smtp opens a real connection to the mail server. Kept opt-in so the
+  // ordinary health check stays fast and does not authenticate on every poll.
+  const verifySmtp = new URL(request.url).searchParams.get("verify") === "smtp";
   const checks: Record<string, unknown> = {
     firebaseAdminConfigured: isFirebaseAdminConfigured(),
     emailConfigured: isEmailConfigured(),
@@ -39,6 +42,12 @@ export async function GET() {
     console.error("[enn][health] database unreachable:", err);
     checks.databaseReachable = false;
     checks.store = isFirebaseAdminConfigured() ? "firestore" : "local";
+  }
+
+  if (verifySmtp) {
+    const result = await verifyEmailConnection();
+    checks.smtpConnectionOk = result.ok;
+    if (!result.ok) checks.smtpFailureReason = result.reason;
   }
 
   const healthy = checks.databaseReachable === true;
