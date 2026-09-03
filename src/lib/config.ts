@@ -30,3 +30,29 @@ export const ADMIN_SESSION_COOKIE = "enn_admin_session";
 
 /** Registration reference prefix: ENN-<year>-<seq> */
 export const REFERENCE_PREFIX = "ENN";
+
+/**
+ * The canonical site URL, always a valid absolute URL.
+ *
+ * NEXT_PUBLIC_SITE_URL is typed by hand into a deployment dashboard, so it
+ * regularly arrives without a scheme ("my-app.vercel.app") or with stray
+ * whitespace. Passing that straight to `new URL()` throws during the build,
+ * which fails the whole deployment for a cosmetic metadata value. A missing
+ * scheme is assumed to be https, and anything unusable falls back.
+ */
+export function resolveSiteUrl(raw = process.env.NEXT_PUBLIC_SITE_URL): string {
+  const fallback = "http://localhost:3000";
+  const value = (raw ?? "").trim().replace(/\/+$/, "");
+  if (!value) return fallback;
+
+  const candidate = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+  try {
+    return new URL(candidate).toString().replace(/\/$/, "");
+  } catch {
+    console.warn(
+      `[enn] NEXT_PUBLIC_SITE_URL is not a usable URL (${JSON.stringify(raw)}). ` +
+        `Falling back to ${fallback}. Set it to a full address such as https://example.com.`,
+    );
+    return fallback;
+  }
+}

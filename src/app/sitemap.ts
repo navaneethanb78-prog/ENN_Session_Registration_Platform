@@ -1,8 +1,9 @@
 import type { MetadataRoute } from "next";
+import { resolveSiteUrl } from "@/lib/config";
 
 /** Public pages only — the admin area is deliberately absent. */
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  const base = resolveSiteUrl();
   const now = new Date();
   return [
     { url: base, lastModified: now, changeFrequency: "daily", priority: 1 },

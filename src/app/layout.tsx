@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Source_Serif_4 } from "next/font/google";
-import { BRAND } from "@/lib/config";
+import { BRAND, resolveSiteUrl } from "@/lib/config";
 import "./globals.css";
 
 const inter = Inter({
@@ -16,7 +16,7 @@ const display = Source_Serif_4({
   display: "swap",
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://enn-consultancy.vercel.app";
+const SITE_URL = resolveSiteUrl();
 const TITLE = `${BRAND.name} | Awareness & Training Sessions`;
 const DESCRIPTION =
   "Register for ENN Consultancy awareness and professional training sessions. Live seat availability for ISO 9001, ISO 14001, ISO 45001 and other management-system programmes.";

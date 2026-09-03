@@ -1,3 +1,4 @@
+import { resolveSiteUrl } from "@/lib/config";
 import { getStore } from "@/lib/db";
 import { AppError } from "@/lib/errors";
 import { sendEmail } from "./mailer";
@@ -22,8 +23,7 @@ export interface AnnouncementResult {
 }
 
 function registerUrl(): string {
-  const base = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
-  return `${base}/register`;
+  return `${resolveSiteUrl()}/register`;
 }
 
 /** Who would receive an announcement, without sending anything. */
