@@ -3,6 +3,7 @@ import { getStore } from "@/lib/db";
 import { isEmailConfigured } from "@/lib/email/mailer";
 import { isFirebaseAdminConfigured } from "@/lib/firebase/admin";
 import { isUpiConfigured } from "@/lib/payment";
+import { allowedEmails } from "@/lib/auth/admin";
 
 /**
  * Deployment health.
@@ -23,6 +24,8 @@ export async function GET() {
     emailConfigured: isEmailConfigured(),
     upiConfigured: isUpiConfigured(),
     adminSessionSecretSet: Boolean(process.env.ADMIN_SESSION_SECRET),
+    // Count only. If this is 0, no account can sign in to the admin area.
+    adminEmailsConfigured: allowedEmails().length,
     siteUrlSet: Boolean(process.env.NEXT_PUBLIC_SITE_URL),
   };
 

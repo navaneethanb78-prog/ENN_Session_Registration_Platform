@@ -56,3 +56,15 @@ export function resolveSiteUrl(raw = process.env.NEXT_PUBLIC_SITE_URL): string {
     return fallback;
   }
 }
+
+/**
+ * Read an environment variable, tolerating dashboard paste artefacts.
+ *
+ * Values pasted into a hosting dashboard frequently arrive wrapped in the
+ * quotes carried over from the .env line, or with stray whitespace. Comparing
+ * against such a value silently fails in ways that are very hard to diagnose,
+ * so every setting compared as text is read through here.
+ */
+export function readEnv(name: string): string {
+  return (process.env[name] ?? "").trim().replace(/^['"]|['"]$/g, "").trim();
+}

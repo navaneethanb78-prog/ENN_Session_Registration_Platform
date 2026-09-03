@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import { ADMIN_SESSION_COOKIE, ADMIN_SESSION_MAX_AGE_SECONDS } from "@/lib/config";
+import { ADMIN_SESSION_COOKIE, ADMIN_SESSION_MAX_AGE_SECONDS, readEnv } from "@/lib/config";
 import { AppError } from "@/lib/errors";
 import { isFirebaseAdminConfigured } from "@/lib/firebase/admin";
 
@@ -87,10 +87,13 @@ export function verifySessionToken(token: string | undefined): SessionPayload | 
 }
 
 /** Emails permitted to administer, from ADMIN_EMAILS (comma-separated). */
-function allowedEmails(): string[] {
-  return (process.env.ADMIN_EMAILS ?? process.env.ADMIN_EMAIL ?? "")
+export function allowedEmails(): string[] {
+  const raw = readEnv("ADMIN_EMAILS") || readEnv("ADMIN_EMAIL");
+  return raw
     .split(",")
-    .map((e) => e.trim().toLowerCase())
+    // Each address is stripped too: quotes survive around individual entries
+    // in a comma-separated list even when the whole value is unquoted.
+    .map((e) => e.trim().replace(/^['"]|['"]$/g, "").trim().toLowerCase())
     .filter(Boolean);
 }
 
@@ -115,16 +118,22 @@ export async function authenticateAdmin(attempt: LoginAttempt): Promise<string> 
       throw new AppError("UNAUTHORISED", "Your sign-in could not be verified. Please try again.");
     }
     const tokenEmail = (decoded.email ?? "").toLowerCase();
-    const isAdmin = decoded.admin === true || allowedEmails().includes(tokenEmail);
+    const permitted = allowedEmails();
+    const isAdmin = decoded.admin === true || permitted.includes(tokenEmail);
     if (!isAdmin) {
+      console.warn(
+        `[enn] admin sign-in refused for a verified account. ADMIN_EMAILS lists ` +
+          `${permitted.length} address(es); the signed-in address was not among them. ` +
+          `Check ADMIN_EMAILS is set on this deployment and matches exactly.`,
+      );
       throw new AppError("UNAUTHORISED", "This account does not have administrator access.");
     }
     return tokenEmail || email;
   }
 
   // --- Environment credential path ---
-  const expectedEmail = (process.env.ADMIN_EMAIL ?? "").trim().toLowerCase();
-  const expectedPassword = process.env.ADMIN_PASSWORD ?? "";
+  const expectedEmail = readEnv("ADMIN_EMAIL").toLowerCase();
+  const expectedPassword = readEnv("ADMIN_PASSWORD");
 
   if (!expectedEmail || !expectedPassword) {
     if (process.env.NODE_ENV === "production") {
